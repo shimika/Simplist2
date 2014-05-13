@@ -1,0 +1,388 @@
+﻿<Window x:Class="Simplist2.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Simplist2"
+        Title="MainWindow" Width="400" Height="620"
+        WindowStartupLocation="Manual" Topmost="True" AllowsTransparency="True"
+        ResizeMode="NoResize" WindowStyle="None" ShowInTaskbar="False" Background="Transparent"
+        Loaded="Window_Loaded" Closing="Window_Closing" KeyDown="Window_KeyDown"
+        >
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/Metro/Light/Metro.MSControls.Core.Implicit.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid x:Name="gridRoot" Margin="9" Background="{DynamicResource sColor}">
+        <Grid.Effect>
+            <DropShadowEffect x:Name="grideffectShadow" BlurRadius="10" ShadowDepth="1" Direction="270" Color="Black" Opacity="0.6"/>
+        </Grid.Effect>
+        <Grid Height="41" Background="DarkSlateGray" VerticalAlignment="Top"/>
+        
+        <Grid Background="White" ClipToBounds="True" Margin="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="40"/>
+                <RowDefinition Height="40"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Grid Background="{DynamicResource bColor}" MouseLeftButtonDown="gridTitlebar_MouseLeftButtonDown">
+                <TextBlock x:Name="textMessage" Text="" FontFamily="Century Gothic" FontSize="16" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="40,0,40,0"/>
+                
+                <Grid x:Name="gridError" Background="Crimson" Opacity="0">
+                    <TextBlock x:Name="textError" Text="Error Message" FontFamily="Century Gothic" FontSize="16" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="40,0,40,0"/>
+                </Grid>
+                
+                <Button x:Name="buttonClose" Width="40" Height="40" Background="Transparent" HorizontalAlignment="Left" Click="buttonClose_Click" >
+                    <Image Source="Resources/Close.png" Width="15" Height="15"/>
+                </Button>
+                <Button x:Name="buttonShowMode" Width="40" Height="40" Background="Transparent" HorizontalAlignment="Right" Margin="0,0,40,0" Click="buttonShowMode_Click" Visibility="Collapsed">
+                    <Image Source="Resources/parent.png" Width="40" Height="40"/>
+                </Button>
+                <Button x:Name="buttonAdd" Width="40" Height="40" Background="Transparent" HorizontalAlignment="Left" Margin="340,0,0,0" Click="buttonAdd_Click">
+                    <Image Source="Resources/Add.png" Width="30" Height="30"/>
+                </Button>
+                <Button x:Name="buttonRefresh" Width="40" Height="40" Background="Transparent" HorizontalAlignment="Left" Margin="340,0,0,0" Click="buttonRefresh_Click" Visibility="Collapsed">
+                    <Image Source="Resources/refresh.png" Width="35" Height="35"/>
+                </Button>
+            </Grid>
+
+            <Grid Grid.Row="1" Background="{DynamicResource sColor}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="90"/>
+                    <ColumnDefinition Width="90"/>
+                    <ColumnDefinition Width="90"/>
+                    <ColumnDefinition Width="110"/>
+                    <ColumnDefinition Width="40"/>
+                </Grid.ColumnDefinitions>
+
+                <Button x:Name="buttonTabSeason" Background="Transparent" Click="buttonTabSeason_Click" IsEnabled="False">
+                    <TextBlock x:Name="buttonInnerSeason" Text="Season" FontSize="18" FontFamily="Century Gothic" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
+                </Button>
+                <Button x:Name="buttonTabArchive" Background="Transparent" Grid.Column="1" Click="buttonTabArchive_Click">
+                    <TextBlock x:Name="buttonInnerArchive" Text="Archive" FontSize="18" FontFamily="Century Gothic" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource bColor}"/>
+                </Button>
+                <Button x:Name="buttonTabSetting" Background="Transparent" Grid.Column="2" Click="buttonTabSetting_Click">
+                    <TextBlock x:Name="buttonInnerSetting" Text="Setting" FontSize="18" FontFamily="Century Gothic" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource bColor}"/>
+                </Button>
+                <Button x:Name="buttonTabNotice" Background="Transparent" Grid.Column="3" Click="buttonTabNotice_Click" HorizontalAlignment="Left" Margin="15,0,0,0">
+                    <TextBlock x:Name="buttonInnerNotice" Text="Notice" FontSize="18" FontFamily="Century Gothic" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource bColor}"/>
+                </Button>
+
+                <!-- 
+                <Button x:Name="buttonNoticeNo" Opacity="0.8" Background="{DynamicResource bColor}" Grid.Column="4" HorizontalAlignment="Right" Width="40" Click="buttonTabNotify_Click" Visibility="Collapsed">
+                    <Button.OpacityMask>
+                        <ImageBrush x:Name="imageNoticeNo" ImageSource="Resources/favs.png"/>
+                    </Button.OpacityMask>
+                </Button>
+                <Button x:Name="buttonNoticeYes" Opacity="0.8" Background="{DynamicResource bColor}" Grid.Column="4" HorizontalAlignment="Right" Width="40" Click="buttonTabNotify_Click">
+                    <Button.OpacityMask>
+                        <ImageBrush x:Name="imageNoticeYes" ImageSource="Resources/favsadd.png"/>
+                    </Button.OpacityMask>
+                </Button>
+                -->
+
+                <Rectangle x:Name="rectSelectedIndicator" Width="90" Height="5" Fill="White" Grid.ColumnSpan="5" HorizontalAlignment="Left" VerticalAlignment="Bottom"/>
+            </Grid>
+
+            <ScrollViewer x:Name="scrollSeason" Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="stackSeason">
+                    <!-- Week data -->
+                    <StackPanel x:Name="stackSeason0">
+                        <Button IsEnabled="False" Height="40" HorizontalContentAlignment="Left" VerticalContentAlignment="Center" HorizontalAlignment="Left" Background="Transparent" Margin="10,0,0,0">
+                            <TextBlock Text="일요일" VerticalAlignment="Center" FontSize="16" Foreground="{DynamicResource bColor}"/>
+                        </Button>
+                        <StackPanel x:Name="stackSeasonItem0"/>
+                    </StackPanel>
+
+                    <StackPanel x:Name="stackSeason1">
+                        <Button IsEnabled="False" Height="40" HorizontalContentAlignment="Left" VerticalContentAlignment="Center" HorizontalAlignment="Left" Background="Transparent" Margin="10,0,0,0">
+                            <TextBlock Text="월요일" VerticalAlignment="Center" FontSize="16" Foreground="{DynamicResource bColor}"/>
+                        </Button>
+                        <StackPanel x:Name="stackSeasonItem1"/>
+                    </StackPanel>
+                    
+                    <StackPanel x:Name="stackSeason2">
+                        <Button IsEnabled="False" Height="40" HorizontalContentAlignment="Left" VerticalContentAlignment="Center" HorizontalAlignment="Left" Background="Transparent" Margin="10,0,0,0">
+                            <TextBlock Text="화요일" VerticalAlignment="Center" FontSize="16" Foreground="{DynamicResource bColor}"/>
+                        </Button>
+                        <StackPanel x:Name="stackSeasonItem2"/>
+                    </StackPanel>
+                    
+                    <StackPanel x:Name="stackSeason3">
+                        <Button IsEnabled="False" Height="40" HorizontalContentAlignment="Left" VerticalContentAlignment="Center" HorizontalAlignment="Left" Background="Transparent" Margin="10,0,0,0">
+                            <TextBlock Text="수요일" VerticalAlignment="Center" FontSize="16" Foreground="{DynamicResource bColor}"/>
+                        </Button>
+                        <StackPanel x:Name="stackSeasonItem3"/>
+                    </StackPanel>
+                    
+                    <StackPanel x:Name="stackSeason4">
+                        <Button IsEnabled="False" Height="40" HorizontalContentAlignment="Left" VerticalContentAlignment="Center" HorizontalAlignment="Left" Background="Transparent" Margin="10,0,0,0">
+                            <TextBlock Text="목요일" VerticalAlignment="Center" FontSize="16" Foreground="{DynamicResource bColor}"/>
+                        </Button>
+                        <StackPanel x:Name="stackSeasonItem4"/>
+                    </StackPanel>
+                    
+                    <StackPanel x:Name="stackSeason5">
+                        <Button IsEnabled="False" Height="40" HorizontalContentAlignment="Left" VerticalContentAlignment="Center" HorizontalAlignment="Left" Background="Transparent" Margin="10,0,0,0">
+                            <TextBlock Text="금요일" VerticalAlignment="Center" FontSize="16" Foreground="{DynamicResource bColor}"/>
+                        </Button>
+                        <StackPanel x:Name="stackSeasonItem5"/>
+                    </StackPanel>
+                    
+                    <StackPanel x:Name="stackSeason6">
+                        <Button IsEnabled="False" Height="40" HorizontalContentAlignment="Left" VerticalContentAlignment="Center" HorizontalAlignment="Left" Background="Transparent" Margin="10,0,0,0">
+                            <TextBlock Text="토요일" VerticalAlignment="Center" FontSize="16" Foreground="{DynamicResource bColor}"/>
+                        </Button>
+                        <StackPanel x:Name="stackSeasonItem6"/>
+                    </StackPanel>
+
+                    <Grid Visibility="Collapsed" Height="40" VerticalAlignment="Top" Background="Transparent">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="35"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="10"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Grid Width="10" HorizontalAlignment="Right" Background="{DynamicResource sColor}" />
+
+                        <TextBlock Text="07:34" Grid.Column="1" FontSize="16" Foreground="Gray" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Hello, World! C#" FontSize="16" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+
+                        <Button Grid.Column="3" Background="Transparent" Width="20" Height="40" HorizontalAlignment="Center">
+                            <Grid Background="Black" Width="12" Height="12">
+                                <Grid.OpacityMask>
+                                    <ImageBrush ImageSource="Resources/iconMinus.png"/>
+                                </Grid.OpacityMask>
+                            </Grid>
+                        </Button>
+                        <TextBlock Text="07" FontFamily="Century Gothic" FontSize="20" Grid.Column="4" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Button Grid.Column="5" Background="Transparent" Width="20" Height="40" HorizontalAlignment="Center">
+                            <Grid Background="Black" Width="12" Height="12">
+                                <Grid.OpacityMask>
+                                    <ImageBrush ImageSource="Resources/iconPlus.png"/>
+                                </Grid.OpacityMask>
+                            </Grid>
+                        </Button>
+
+                        <Grid Height="1" Grid.ColumnSpan="6" VerticalAlignment="Bottom" Margin="10,0,0,0" Background="{DynamicResource sColor}"/>
+                    </Grid>
+                </StackPanel>
+                
+                
+            </ScrollViewer>
+            <ScrollViewer x:Name="scrollArchive" Grid.Row="2" Visibility="Collapsed">
+                <StackPanel x:Name="stackArchive"/>
+            </ScrollViewer>
+            <StackPanel x:Name="stackSetting" Grid.Row="2" Background="White" Visibility="Collapsed">
+                <CheckBox x:Name="checkTray" Content="종료 시 트레이로 이동" Margin="10,20,10,0" FontSize="16" Checked="Setting_Changed" Unchecked="Setting_Changed"/>
+                <CheckBox x:Name="checkNoti" Content="자막 업로드 알림" Margin="10,10,10,0" FontSize="16" Checked="Setting_Changed" Unchecked="Setting_Changed" IsEnabled="False" Opacity="0.6"/>
+                
+                <TextBlock x:Name="textVersion" Text="" Margin="20,50,30,20" FontSize="16" HorizontalAlignment="Right"/>
+            </StackPanel>
+            
+            <Grid x:Name="gridNotice" Grid.Row="2" Background="White" Visibility="Collapsed">                
+                <ScrollViewer x:Name="scrollNotice" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="stackNotice">
+                        <!-- 
+                        <Grid Height="60" VerticalAlignment="Stretch">
+                            <TextBlock Text="Very long Title 한글 제목" Foreground="Gray" VerticalAlignment="Top" FontSize="16" Margin="5"/>
+                            <TextBlock Foreground="{DynamicResource bColor}" Text="06" VerticalAlignment="Top" FontSize="16" Margin="5,25,5,5"/>
+                        </Grid>
+                        -->
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <Grid x:Name="gridAdd" Grid.Row="1" Grid.RowSpan="2" Opacity="0" Visibility="Visible" IsHitTestVisible="False" ClipToBounds="True">
+                <Grid x:Name="gridAddDialogCover" Background="Black" Opacity="0.7" MouseDown="gridAddDialogCover_MouseDown"/>
+                <StackPanel x:Name="stackAddDialog" Margin="0,-120,0,0" Opacity="1" Background="White" VerticalAlignment="Top" SnapsToDevicePixels="True">
+                    <Grid Margin="0,5,0,0" Visibility="Visible" Height="40">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="90"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="textAddTitleType" Text="제목" Width="60" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0,10,0" FontSize="16" Foreground="{DynamicResource bColor}"/>
+                        <TextBox x:Name="textboxTitle" Margin="5,5,10,5" FontSize="16" Tag="Enter the title" Grid.Column="1" ContextMenu="{x:Null}" TextChanged="textboxTitle_TextChanged" KeyDown="textboxAddWindow_KeyDown"/>
+                    </Grid>
+
+                    <TextBlock x:Name="textLinkAlert" Text="" TextWrapping="Wrap" Margin="10" FontSize="16"/>
+
+                    <StackPanel x:Name="stackSeasonForm" Visibility="Visible" Height="136">
+                        <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                            <TextBlock x:Name="textShowTime" Text="방영 시간" MinWidth="70" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0,10,0" FontSize="16" Foreground="{DynamicResource bColor}"/>
+                            <ComboBox x:Name="comboboxWeekday" Margin="5" Width="65" SelectedIndex="0" >
+                                <ComboBoxItem Content="일"/>
+                                <ComboBoxItem Content="월"/>
+                                <ComboBoxItem Content="화"/>
+                                <ComboBoxItem Content="수"/>
+                                <ComboBoxItem Content="목"/>
+                                <ComboBoxItem Content="금"/>
+                                <ComboBoxItem Content="토"/>
+                            </ComboBox>
+                            <TextBox x:Name="textboxHour" Margin="5" FontSize="16" Tag="Hour" Width="90" ContextMenu="{x:Null}" KeyDown="textboxAddWindow_KeyDown"/>
+                            <TextBox x:Name="textboxMinute" Margin="5" FontSize="16" Tag="Minute" Width="90" ContextMenu="{x:Null}" KeyDown="textboxAddWindow_KeyDown"/>
+                        </StackPanel>
+
+                        <Grid Margin="0,5,0,0" Visibility="Visible" Height="40">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="90"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock x:Name="textLinked" Text="원제" Margin="10,5,10,5" TextTrimming="CharacterEllipsis" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="16" Foreground="{DynamicResource bColor}" />
+                            <TextBlock x:Name="textLinkedTitle" Text="" Grid.Column="1" Margin="5,5,10,5" TextTrimming="CharacterEllipsis" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="16" />
+                            <ComboBox x:Name="comboboxLink" Margin="5,4,10,5" Grid.Column="1"/>
+                        </Grid>
+
+                        <Grid Margin="0,5,0,0" Visibility="Visible" Height="40">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="90"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="검색어" Width="60" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0,10,0" FontSize="16" Foreground="{DynamicResource bColor}"/>
+                            <TextBox x:Name="textboxSearchTag" Margin="5,5,10,5" FontSize="16" Tag="Enter the title" Grid.Column="1" ContextMenu="{x:Null}" KeyDown="textboxAddWindow_KeyDown"/>
+                        </Grid>
+
+                    </StackPanel>
+                    <Grid Height="40" SnapsToDevicePixels="True" Background="LightGray" Margin="0,5,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button x:Name="buttonPopupOK" Margin="0,1,1,0" Background="White" Height="40" Style="{DynamicResource FlatMessageButton}" Focusable="False" Click="buttonPopupOK_Click">
+                            <TextBlock Text="Ok" FontSize="16" Foreground="{DynamicResource bColor}" FontFamily="Century Gothic" />
+                        </Button>
+                        <Button x:Name="buttonPopupCancel" Margin="0,1,0,0" Background="White" Grid.Column="1" Height="40" Style="{DynamicResource FlatMessageButton}" Focusable="False" Click="buttonPopupCancel_Click">
+                            <TextBlock Text="Cancel" FontSize="16" Foreground="{DynamicResource bColor}" FontFamily="Century Gothic"/>
+                        </Button>
+                    </Grid>
+                </StackPanel>
+
+                <Grid x:Name="gridSchedule" Background="White" Height="300" Margin="0,0,0,-300" VerticalAlignment="Bottom">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="40"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid x:Name="gridWeekSchedule" Background="{DynamicResource sColor}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+
+                        <Button Background="Transparent" Grid.Column="0" Tag="0" Click="ButtonSchedule_Click">
+                            <TextBlock Text="Sun" FontSize="18" FontFamily="Century Gothic" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource bColor}"/>
+                        </Button>
+                        <Button Background="Transparent" Grid.Column="1" Tag="1" Click="ButtonSchedule_Click">
+                            <TextBlock Text="Mon" FontSize="18" FontFamily="Century Gothic" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource bColor}"/>
+                        </Button>
+                        <Button Background="Transparent" Grid.Column="2" Tag="2" Click="ButtonSchedule_Click">
+                            <TextBlock Text="Tue" FontSize="18" FontFamily="Century Gothic" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource bColor}"/>
+                        </Button>
+                        <Button Background="Transparent" Grid.Column="3" Tag="3" Click="ButtonSchedule_Click">
+                            <TextBlock Text="Wed" FontSize="18" FontFamily="Century Gothic" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource bColor}"/>
+                        </Button>
+                        <Button Background="Transparent" Grid.Column="4" Tag="4" Click="ButtonSchedule_Click">
+                            <TextBlock Text="Thu" FontSize="18" FontFamily="Century Gothic" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource bColor}"/>
+                        </Button>
+                        <Button Background="Transparent" Grid.Column="5" Tag="5" Click="ButtonSchedule_Click">
+                            <TextBlock Text="Fri" FontSize="18" FontFamily="Century Gothic" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource bColor}"/>
+                        </Button>
+                        <Button Background="Transparent" Grid.Column="6" Tag="6" Click="ButtonSchedule_Click">
+                            <TextBlock Text="Sat" FontSize="18" FontFamily="Century Gothic" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource bColor}"/>
+                        </Button>
+                    </Grid>
+
+                    <ScrollViewer x:Name="scrollSchedule" Grid.Row="1">
+                        <StackPanel x:Name="stackSchedule">
+                        
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+
+                <Grid x:Name="gridRemoveItem" Background="White" Height="80" Margin="0,0,0,-80" VerticalAlignment="Bottom">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    
+                    <Button x:Name="buttonEnableDisable" Height="40" Background="{DynamicResource bColor}" Click="buttonEnableDisable_Click">
+                        <TextBlock Text="Disable this item" FontSize="16" Foreground="White" FontFamily="Century Gothic"/>
+                    </Button>
+                    
+                    <Button x:Name="buttonRemoveItem" Grid.Row="1" Height="40" Background="Crimson" Click="buttonRemoveItem_Click">
+                        <TextBlock Text="Remove" FontSize="16" Foreground="White" FontFamily="Century Gothic"/>
+                    </Button>
+                </Grid>
+            </Grid>
+            <Grid x:Name="gridDown" Grid.Row="0" Grid.RowSpan="3" Opacity="0" Visibility="Visible" IsHitTestVisible="False" ClipToBounds="True">
+                <Grid x:Name="gridDownCover" Background="Black" Opacity="0.5" MouseDown="gridDownCover_MouseDown"/>
+                <Grid x:Name="gridDownDialog" Height="450" Margin="0,0,0,-100" Background="White" VerticalAlignment="Bottom">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="40"/>
+                        <RowDefinition Height="40"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Background="{DynamicResource sColor}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="buttonTabTorrent" Width="90" Background="Transparent" Grid.Column="0" Click="buttonTabTorrent_Click">
+                                <TextBlock Text="Torrent" FontSize="18" FontFamily="Century Gothic" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
+                            </Button>
+                            <Button x:Name="buttonTabSubtitle" Width="90" Background="Transparent" Grid.Column="1" Click="buttonTabSubtitle_Click">
+                                <TextBlock Text="Subtitle" FontSize="18" FontFamily="Century Gothic" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource bColor}"/>
+                            </Button>
+                        </StackPanel>
+
+                        <local:GifImage x:Name="imgLoadIndicator" Grid.Column="1" Visibility="Collapsed" HorizontalAlignment="Right" Margin="0,0,10,0" GifSource="pack://application:,,,/Simplist2;component/Resources/load.gif" Width="24" Height="24"/>
+                    </Grid>
+                    
+                    <Grid x:Name="gridTorrentInfo" Background="{DynamicResource bColor}" Grid.Row="1" Height="40">
+                        <TextBlock Text="" x:Name="textTorrentInfo" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="10,0,10,0" Foreground="White" FontSize="16" TextTrimming="CharacterEllipsis"/>
+                        <!-- 
+                        <TextBlock Text="AAA" Foreground="LightGray"/>
+                        <TextBlock Text="AAA" Foreground="White"/>
+                        -->
+                    </Grid>
+                    
+                    <Grid x:Name="gridSubtitleInfo" Background="{DynamicResource bColor}" Grid.Row="1" Height="40">
+                        <Button x:Name="buttonSubtitleBack" Opacity="0" Width="30" Height="40" Background="Transparent" HorizontalAlignment="Left" Click="SubtitleBack_Click">
+                            <Image Source="Resources/arrowleft.png" Width="11" Height="17"/>
+                        </Button>
+                        
+                        <Grid x:Name="gridSubtitleCaptions" Grid.Column="1" Background="Transparent" IsHitTestVisible="False">
+                            
+                        </Grid>
+                    </Grid>
+
+                    <ScrollViewer x:Name="scrollTorrent" Grid.Row="2">
+                        <StackPanel x:Name="stackTorrent"/>
+                    </ScrollViewer>
+
+
+                    <Grid x:Name="gridSubtitle" Grid.Row="2" IsHitTestVisible="False"/>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
