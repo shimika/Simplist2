@@ -48,6 +48,10 @@
                 <Button x:Name="buttonRefresh" Width="40" Height="40" Background="Transparent" HorizontalAlignment="Left" Margin="340,0,0,0" Click="buttonRefresh_Click" Visibility="Collapsed">
                     <Image Source="Resources/refresh.png" Width="35" Height="35"/>
                 </Button>
+
+                <Button x:Name="buttonScreenshot" Width="40" Height="40" Background="Transparent" HorizontalAlignment="Right" Click="buttonScreenshot_Click" Margin="0,0,40,0">
+                    <Image Source="Resources/camera.png" Width="40" Height="40"/>
+                </Button>
             </Grid>
 
             <Grid Grid.Row="1" Background="{DynamicResource sColor}">
@@ -89,7 +93,7 @@
             </Grid>
 
             <ScrollViewer x:Name="scrollSeason" Grid.Row="2" VerticalScrollBarVisibility="Auto">
-                <StackPanel x:Name="stackSeason">
+                <StackPanel x:Name="stackSeason" Background="White">
                     <!-- Week data -->
                     <StackPanel x:Name="stackSeason0">
                         <Button IsEnabled="False" Height="40" HorizontalContentAlignment="Left" VerticalContentAlignment="Center" HorizontalAlignment="Left" Background="Transparent" Margin="10,0,0,0">
@@ -183,7 +187,7 @@
             </ScrollViewer>
             <StackPanel x:Name="stackSetting" Grid.Row="2" Background="White" Visibility="Collapsed">
                 <CheckBox x:Name="checkTray" Content="종료 시 트레이로 이동" Margin="10,20,10,0" FontSize="16" Checked="Setting_Changed" Unchecked="Setting_Changed"/>
-                <CheckBox x:Name="checkNoti" Content="자막 업로드 알림" Margin="10,10,10,0" FontSize="16" Checked="Setting_Changed" Unchecked="Setting_Changed" IsEnabled="False" Opacity="0.6"/>
+                <CheckBox x:Name="checkNoti" Content="자막 업로드 알림" Margin="10,10,10,0" FontSize="16" Checked="Setting_Changed" Unchecked="Setting_Changed"/>
                 
                 <TextBlock x:Name="textVersion" Text="" Margin="20,50,30,20" FontSize="16" HorizontalAlignment="Right"/>
             </StackPanel>

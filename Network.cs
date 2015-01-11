@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -18,33 +19,165 @@ using System.Xml;
 
 namespace Simplist2 {
 	public partial class MainWindow : Window {
-		private static async Task<List<ListData>> GetTorrentList(string strTag) {
-			Task<string> httpTask = GetHTML(@"http://www.nyaa.eu/?page=rss&cats=1_0&term=" + strTag, "UTF-8");
-			string strHTML = await httpTask;
-
+		private string RssType = "nyaa";
+		private async Task<List<ListData>> GetTorrentList(string strTag) {
 			List<ListData> listTorrent = new List<ListData>();
-			XmlDocument xmlDoc = new XmlDocument();
-			XmlNodeList xmlnode;
-			int nCount = 0;
+			if (RssType == "nyaa") {
+				// Nyaa torrent
 
-			try {
-				xmlDoc.LoadXml(strHTML);
-				xmlnode = xmlDoc.SelectNodes("rss/channel/item");
-			} catch { return listTorrent; }
+				Task<string> httpTask = GetHTML(@"http://www.nyaa.eu/?page=rss&cats=1_0&term=" + strTag, "UTF-8");
+				string strHTML = await httpTask;
 
-			foreach (XmlNode node in xmlnode) {
-				ListData tData = new ListData() {
-					Caption = node["title"].InnerText, URL = node["link"].InnerText, IsTorrent = true,
-				};
-				if (node["category"].InnerText == "Raw Anime") { tData.IsRaw = true; }
+				XmlDocument xmlDoc = new XmlDocument();
+				XmlNodeList xmlnode;
+				int nCount = 0;
+
 				try {
-					string strFileSize = node["description"].InnerText.Split(new string[] { " - ", "]]" }, StringSplitOptions.RemoveEmptyEntries)[1];
-					tData.Memo += strFileSize;
-				} catch { }
+					xmlDoc.LoadXml(strHTML);
+					xmlnode = xmlDoc.SelectNodes("rss/channel/item");
+				} catch { return listTorrent; }
 
-				listTorrent.Add(tData);
-				nCount++;
-				if (nCount >= 30) { break; }
+				foreach (XmlNode node in xmlnode) {
+					ListData tData = new ListData() {
+						Caption = node["title"].InnerText, URL = node["link"].InnerText, IsTorrent = true,
+					};
+					if (node["category"].InnerText == "Raw Anime") { tData.IsRaw = true; }
+					try {
+						string strFileSize = node["description"].InnerText.Split(new string[] { " - ", "]]" }, StringSplitOptions.RemoveEmptyEntries)[1];
+						tData.Memo += strFileSize;
+					} catch { }
+
+					listTorrent.Add(tData);
+					nCount++;
+					if (nCount >= 30) { break; }
+				}
+			} else if (RssType == "anirena") {
+				// Anirena
+
+				Task<string> httpTask = GetHTML(@"http://www.anirena.com/rss.php?s=" + strTag, "UTF-8");
+				string strHTML = await httpTask;
+
+				XmlDocument xmlDoc = new XmlDocument();
+				XmlNodeList xmlnode;
+				int nCount = 0;
+
+				try {
+					xmlDoc.LoadXml(strHTML);
+					xmlnode = xmlDoc.SelectNodes("rss/channel/item");
+				} catch { return listTorrent; }
+
+				foreach (XmlNode node in xmlnode) {
+					ListData tData = new ListData() {
+						Caption = node["title"].InnerText, URL = node["link"].InnerText, IsTorrent = true,
+					};
+					if (node["category"].InnerText == "RAW") { tData.IsRaw = true; }
+					try {
+						string strFileSize = node["description"].InnerText.Split(new string[] { " - ", "," }, StringSplitOptions.RemoveEmptyEntries)[3].Trim();
+						tData.Memo += strFileSize;
+					} catch { }
+
+					listTorrent.Add(tData);
+					nCount++;
+					if (nCount >= 30) { break; }
+				}
+			} else if (RssType == "tokyotosho") {
+				// Tokyo Toshokan
+
+				Task<string> httpTask = GetHTML(@"http://tokyotosho.info/search.php?terms=" + strTag, "UTF-8");
+				string strHTML = await httpTask;
+
+				int listStart = 0, listEnd = 0;
+
+				listStart = strHTML.IndexOf("<table class=\"listing\">");
+				if (listStart < 0) { return listTorrent; }
+				listEnd = strHTML.IndexOf("</table>", listStart);
+
+				int startIndex = 0, endIndex = 0;
+
+				for (int i = 0; i < 50; i++) {
+					startIndex = strHTML.IndexOf("<tr ", endIndex);
+					endIndex = startIndex + 1;
+					if (startIndex < 0) { break; }
+
+					string title, link, size, tag, content;
+					int tagcount = 0;
+					bool isRaw = false;
+					title = link = size = tag = content = "";
+
+					// Check RAW File
+					startIndex = strHTML.IndexOf("<a href=\"/?cat=", startIndex + 1);
+					if (strHTML[startIndex + 15] == '7') { isRaw = true; }
+
+					// Extract Title, Link
+					startIndex = strHTML.IndexOf("<td class=\"desc-top\">", startIndex + 1);
+					startIndex = strHTML.IndexOf("<a ", startIndex + 1);
+					startIndex = strHTML.IndexOf("<a ", startIndex + 1);
+					endIndex = strHTML.IndexOf('>', startIndex + 1);
+
+					// Extract Link
+
+					for (int j = startIndex + 1; j < endIndex; j++) {
+						tag += strHTML[j];
+					}
+					foreach (string split in tag.Split(new string[] { " " }, StringSplitOptions.RemoveEmptyEntries)) {
+						string[] split2 = split.Split(new string[] { "=" }, StringSplitOptions.RemoveEmptyEntries);
+						if (split2[0] == "href") {
+							link = split2[1].Replace("\"", "");
+						}
+					}
+
+					// Extract Title
+
+					startIndex = endIndex;
+					endIndex = strHTML.IndexOf("</a>", startIndex + 1);
+
+					for (int j = startIndex + 1; j < endIndex; j++) {
+						content += strHTML[j];
+					}
+					title = content.Replace("<span class=\"s\"> </span>", "");
+
+
+
+					// Extract Size
+
+					startIndex = strHTML.IndexOf("<tr ", endIndex);
+					endIndex = startIndex + 1;
+					if (startIndex < 0) { break; }
+
+					startIndex = strHTML.IndexOf("<td class=\"desc-bot\">", endIndex);
+					if (startIndex < 0) { continue; }
+					endIndex = strHTML.IndexOf("</td>", startIndex + 1);
+					if (endIndex < 0) { continue; }
+					content = "";
+
+					for (int j = startIndex; j < endIndex; j++) {
+						if (strHTML[j] == '<') {
+							tagcount++;
+						} else if (strHTML[j] == '>') {
+							tagcount--;
+						} else if (tagcount == 0) {
+							content += strHTML[j];
+						}
+					}
+
+					foreach (string split in content.Split(new string[] { "|" }, StringSplitOptions.RemoveEmptyEntries)) {
+						string[] split2 = split.Trim().Split(new string[] { ":" }, StringSplitOptions.RemoveEmptyEntries);
+						if (split2[0] == "Size") {
+							size = split2[1].Trim();
+							break;
+						}
+					}
+
+					ListData tData = new ListData() {
+						Caption = title,
+						URL = link,
+						Memo = size,
+						IsRaw = isRaw,
+						IsTorrent = true,
+					};
+
+					listTorrent.Add(tData);
+				}
 			}
 
 			return listTorrent;
@@ -53,10 +186,10 @@ namespace Simplist2 {
 		public static async Task<List<ListData>> GetWeekdayList(int weekCode) {
 			List<ListData> listWeekday = new List<ListData>();
 
-			Task<string> httpTask = GetHTML(@"http://www.anissia.net/anitime/list?w=" + weekCode, "UTF-8");
-			string strHTML = await httpTask;
-
 			try {
+				Task<string> httpTask = GetHTML(@"http://www.anissia.net/anitime/list?w=" + weekCode, "UTF-8");
+				string strHTML = await httpTask;
+
 				JsonTextParser parser = new JsonTextParser();
 				JsonArrayCollection obj = (JsonArrayCollection)parser.Parse(strHTML);
 
@@ -69,45 +202,55 @@ namespace Simplist2 {
 					};
 					listWeekday.Add(sItem);
 				}
-			} catch { }
+			} catch (Exception ex) {
+				//MessageBox.Show("Weekday\n" + ex.Message);
+				listWeekday.Clear();
+			}
 
 			return listWeekday;
 		}
 
-		public static async Task<List<ListData>> GetMakerList(string strTag, bool ReturnOne = false) {
-			Task<string> httpTask = GetHTML(strTag, "UTF-8");
-			string strHTML = await httpTask;
-
+		public async Task<List<ListData>> GetMakerList(string strTag, bool ReturnOne = false) {
 			List<ListData> listMaker = new List<ListData>();
 
-			JsonTextParser parser = new JsonTextParser();
-			JsonArrayCollection obj = (JsonArrayCollection)parser.Parse(strHTML);
+			try {
+				Task<string> httpTask = GetHTML(strTag, "UTF-8");
+				string strHTML = await httpTask;
 
-			int maxValue = -1, epValue;
 
-			foreach (JsonObjectCollection item in obj) {
-				ListData sItem;
-				if (ReturnOne) {
-					sItem = GetListDataNotice(item);
-				} else {
-					sItem = GetListData(item);
+				JsonTextParser parser = new JsonTextParser();
+				JsonArrayCollection obj = (JsonArrayCollection)parser.Parse(strHTML);
+
+				int maxValue = -1, epValue;
+
+				foreach (JsonObjectCollection item in obj) {
+					ListData sItem;
+					if (ReturnOne) {
+						sItem = GetListDataNotice(item);
+					} else {
+						sItem = GetListData(item);
+					}
+					listMaker.Add(sItem);
+
+					epValue = Convert.ToInt32(sItem.ID.Substring(14, 5));
+					if (maxValue < epValue) { maxValue = epValue; }
 				}
-				listMaker.Add(sItem);
 
-				epValue = Convert.ToInt32(sItem.ID.Substring(14, 5));
-				if (maxValue < epValue) { maxValue = epValue; }
-			}
+				listMaker.Sort(new mysortByValue());
 
-			listMaker.Sort(new mysortByValue());
-
-			if (ReturnOne && listMaker.Count > 0) {
-				for (int i = 0; i < listMaker.Count; i++) {
-					epValue = Convert.ToInt32(listMaker[i].ID.Substring(14, 5));
-					if (epValue == maxValue) {
-						return listMaker.GetRange(i, 1);
+				if (ReturnOne && listMaker.Count > 0) {
+					for (int i = 0; i < listMaker.Count; i++) {
+						epValue = Convert.ToInt32(listMaker[i].ID.Substring(14, 5));
+						if (epValue == maxValue) {
+							return listMaker.GetRange(i, 1);
+						}
 					}
 				}
+			} catch (Exception ex) {
+				//MessageBox.Show("Maker\n" + ex.Message);
+				listMaker.Clear();
 			}
+
 			return listMaker;
 		}
 
@@ -135,6 +278,12 @@ namespace Simplist2 {
 
 			sItem.Memo = "anime";
 			sItem.ID = string.Format("{0}{1}{2}", item["d"].GetValue().ToString(), item["s"].GetValue().ToString(), item["n"].GetValue().ToString());
+			
+			try {
+				sItem.UpdateTime = DateTime.ParseExact(sItem.ID.Substring(0, 14), "yyyyMMddHHmmss", CultureInfo.InvariantCulture);
+			} catch {
+				sItem.UpdateTime = new DateTime(1900, 1, 1);
+			}
 
 			return sItem;
 		}
@@ -146,19 +295,20 @@ namespace Simplist2 {
 		}
 
 		enum SiteType { Naver, Other };
-		public static async Task<List<ListData>> GetFileList(string strTag) {
+		public static async Task<List<ListData>> GetFileList(string strTag, bool isHakerano) {
 			Task<string> httpTask = GetHTML(strTag, "UTF-8");
 			string strHTML = await httpTask;
 
+
 			if (strHTML == "") { return new List<ListData>(); }
 
-			Dictionary<SiteType, int> dictCount = new Dictionary<SiteType, int>();
-			dictCount[SiteType.Naver] = Regex.Matches(strHTML, "naver", RegexOptions.IgnoreCase).Cast<Match>().Count();
-			dictCount[SiteType.Other] = Regex.Matches(strHTML, "tistory", RegexOptions.IgnoreCase).Cast<Match>().Count();
-			dictCount[SiteType.Other] += Regex.Matches(strHTML, "egloos", RegexOptions.IgnoreCase).Cast<Match>().Count();
+			Dictionary<SiteType, int> DictCount = new Dictionary<SiteType, int>();
+			DictCount[SiteType.Naver] = Regex.Matches(strHTML, "naver", RegexOptions.IgnoreCase).Cast<Match>().Count();
+			DictCount[SiteType.Other] = Regex.Matches(strHTML, "tistory", RegexOptions.IgnoreCase).Cast<Match>().Count();
+			DictCount[SiteType.Other] += Regex.Matches(strHTML, "egloos", RegexOptions.IgnoreCase).Cast<Match>().Count();
 
 			SiteType sitetype = SiteType.Other;
-			if (dictCount[SiteType.Naver] > dictCount[SiteType.Other]) { sitetype = SiteType.Naver; }
+			if (DictCount[SiteType.Naver] > DictCount[SiteType.Other]) { sitetype = SiteType.Naver; }
 
 			if (sitetype == SiteType.Naver) {
 				httpTask = GetHTML(strTag, "EUC-KR");
@@ -201,13 +351,18 @@ namespace Simplist2 {
 					if (nURL != "") { strTag = nURL; }
 				}
 
-				httpTask = GetHTML(strTag, "EUC-KR");
+				httpTask = GetHTML(strTag, "utf-8");
 				strHTML = await httpTask;
 			}
 
 			List<ListData> listSmi = null;
 
-			if (sitetype == SiteType.Naver) {
+			if (isHakerano) {
+				listSmi = Fc2Parse(strHTML);
+			} else if (sitetype == SiteType.Naver) {
+				httpTask = GetHTML(strTag, "EUC-KR");
+				strHTML = await httpTask;
+
 				listSmi = NaverParse(strHTML);
 			} else {
 				Task<List<ListData>> parseTask = TistoryParse(strHTML);
@@ -287,7 +442,6 @@ namespace Simplist2 {
 			string fileName, fileURL;
 
 			try {
-
 				for (; ; ) {
 					lst.Clear();
 					foreach (string str in ext) {
@@ -313,8 +467,53 @@ namespace Simplist2 {
 					}
 				}
 			} catch (Exception ex) {
-				//MessageBox.Show(ex.Message);
+				MessageBox.Show(ex.Message);
 			}
+			return listData;
+		}
+
+		private static List<ListData> Fc2Parse(string html) {
+			List<ListData> listData = new List<ListData>();
+
+			int sIndex = 0;
+			string str;
+
+			for (; ; ) {
+				try {
+					sIndex = html.IndexOf("<img", sIndex + 1);
+					if (sIndex < 0) { break; }
+					int eIndex = html.IndexOf(">", sIndex + 1);
+					str = html.Substring(sIndex, eIndex - sIndex + 1);
+				} catch (Exception ex) {
+					MessageBox.Show(ex.Message);
+					continue;
+				}
+
+				if (str.IndexOf("/>") < 0) {
+					str = string.Format("{0}</img>", str);
+				}
+
+				try {
+					XmlDocument xmlDoc = new XmlDocument();
+					xmlDoc.LoadXml(str);
+					XmlElement root = xmlDoc.DocumentElement;
+
+					string alt = root.Attributes["alt"].Value;
+					string src = root.Attributes["src"].Value;
+
+					if (alt.IndexOf("자막") < 0) { continue; }
+
+					listData.Add(new ListData() {
+						Caption = alt,
+						URL = src,
+						Memo = "file"
+					});
+				} catch(Exception ex) {
+					MessageBox.Show(ex.Message + " : " + "\n" + str);
+					continue;
+				}
+			}
+
 			return listData;
 		}
 
@@ -352,37 +551,37 @@ namespace Simplist2 {
 		// common api
 		public static Task<string> GetHTML(string url, string encoding) {
 			return Task.Run(() => {
-				HttpWebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(new UriBuilder(url).Uri);
-				httpWebRequest.ContentType = "application/x-www-form-urlencoded; charset=utf-8";
-				httpWebRequest.Method = "POST";
-				httpWebRequest.Referer = "http://www.google.com/";
-				httpWebRequest.UserAgent =
-					"Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.0; WOW64; " +
-					"Trident/4.0; SLCC1; .NET CLR 2.0.50727; Media Center PC 5.0; " +
-					".NET CLR 3.5.21022; .NET CLR 3.5.30729; .NET CLR 3.0.30618; " +
-					"InfoPath.2; OfficeLiveConnector.1.3; OfficeLivePatch.0.0)";
-
-				string rtHTML = "";
-
 				try {
-					httpWebRequest.Proxy = null;
-					Stream requestStream = httpWebRequest.GetRequestStream();
+					HttpWebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(new UriBuilder(url).Uri);
+					httpWebRequest.Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8";
+					httpWebRequest.ContentType = "application/x-www-form-urlencoded; charset=utf-8";
+					httpWebRequest.Method = "GET";
+					httpWebRequest.Referer = "google.com";
+					httpWebRequest.UserAgent =
+						"Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.0; WOW64; " +
+						"Trident/4.0; SLCC1; .NET CLR 2.0.50727; Media Center PC 5.0; " +
+						".NET CLR 3.5.21022; .NET CLR 3.5.30729; .NET CLR 3.0.30618; " +
+						"InfoPath.2; OfficeLiveConnector.1.3; OfficeLivePatch.0.0)";
+					httpWebRequest.ContentLength = 0;
 
-					requestStream.Close();
+					string rtHTML = "";
+
+					httpWebRequest.Proxy = null;
 
 					HttpWebResponse httpWebResponse = (HttpWebResponse)httpWebRequest.GetResponse();
 					StreamReader streamReader = new StreamReader(httpWebResponse.GetResponseStream(), Encoding.GetEncoding(encoding));
 					rtHTML = streamReader.ReadToEnd();
-				} catch {
-				}
 
-				return rtHTML;
+					return rtHTML;
+				} catch (Exception ex) {
+					//MessageBox.Show(ex.Message);
+					return "";
+				}
 			});
 		}
 
 		private int StringMatching(string s1, string s2) {
 			int[,] a = new int[s1.Length + 1, s2.Length + 1];
-			//string text = s1 + " : " + s2 + "\n";
 
 			for (int i = 0; i <= s1.Length; i++) {
 				for (int j = 0; j <= s2.Length; j++) {
@@ -399,15 +598,8 @@ namespace Simplist2 {
 							a[i, j] = Math.Min(a[i - 1, j], a[i, j - 1]) + 1;
 						}
 					}
-
-					//text += (a[i, j] + " ");
-					//Console.Write("{0} ", a[i, j]);
 				}
-				//text += "\n";
-				//Console.WriteLine();
 			}
-
-			//text += a[s1.Length, s2.Length];
 
 			return a[s1.Length, s2.Length];
 		}
@@ -430,5 +622,6 @@ namespace Simplist2 {
 		public string Caption, URL, Memo, ID;
 		public int Time;
 		public bool IsRaw, IsTorrent;
+		public DateTime UpdateTime;
 	}
 }

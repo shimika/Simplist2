@@ -29,6 +29,13 @@ namespace Simplist2 {
 			if (!File.Exists(ffList)) { using (StreamWriter sw = new StreamWriter(ffList, true, Encoding.UTF8)) { sw.Write(""); } }
 			if (!File.Exists(ffSeason)) { using (StreamWriter sw = new StreamWriter(ffSeason, true, Encoding.UTF8)) { sw.Write(""); } }
 
+			string[] fileNames = Directory.GetFiles(ffFolder);
+			foreach (string fileName in fileNames) {
+				try {
+					File.Delete(fileName);
+				} catch { }
+			}
+
 			if (!File.Exists(ffSet)) {
 				lastDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
 				using (StreamWriter sw = new StreamWriter(ffSet, true, Encoding.UTF8)) {
@@ -38,21 +45,24 @@ namespace Simplist2 {
 			} else {
 				using (StreamReader sr = new StreamReader(ffSet)) {
 					lastDirectory = sr.ReadLine();
+					Setting.IsTray = false;
+					Setting.IsNoti = false;
 
 					if (lastDirectory == "SaveForm ver.2") {
 						string[] split;
 
-						for (int i = 0; i < 3; i++) {
-							split = sr.ReadLine().Split(new string[] { Divider }, StringSplitOptions.RemoveEmptyEntries);
+						for (int i = 0; ; i++) {
+							try {
+								split = sr.ReadLine().Split(new string[] { Divider }, StringSplitOptions.RemoveEmptyEntries);
+							} catch {
+								break;
+							}
 							switch (split[0]) {
 								case "DIR": lastDirectory = split[1]; break;
 								case "TRAY": Setting.IsTray = Convert.ToBoolean(split[1]); break;
-								case "NOTI": Setting.IsNoti= Convert.ToBoolean(split[1]); break;
+								case "NOTI": Setting.IsNoti = Convert.ToBoolean(split[1]); break;
 							}
 						}
-					} else {
-						Setting.IsTray = false;
-						Setting.IsNoti = false;
 					}
 				}
 			}
@@ -201,12 +211,7 @@ namespace Simplist2 {
 			System.Windows.Forms.ToolStripMenuItem copen = new System.Windows.Forms.ToolStripMenuItem("열기");
 			System.Windows.Forms.ToolStripMenuItem cshutdown = new System.Windows.Forms.ToolStripMenuItem("종료");
 
-			ni.MouseDoubleClick +=
-				delegate(object sender, System.Windows.Forms.MouseEventArgs e) {
-					if (e.Button == System.Windows.Forms.MouseButtons.Left) {
-						ActivateMe();
-					}
-				};
+			ni.MouseDoubleClick += delegate(object sender, System.Windows.Forms.MouseEventArgs e) { ActivateMe(); };
 			copen.Click += delegate(object sender, EventArgs e) { ActivateMe(); };
 			cshutdown.Click += delegate(object sender, EventArgs e) { isReallyClose = true; Application.Current.Shutdown(); };
 
@@ -216,9 +221,11 @@ namespace Simplist2 {
 		}
 
 		private void ActivateMe() {
-			this.Visibility = Visibility.Collapsed;
-			this.Visibility = Visibility.Visible;
+			new AltTab().ShowAltTab(this);
+			this.Opacity = 1;
 			this.Activate(); 
+
+			RefreshNoticeControl(ListNotice, false, false);
 		}
 
 		private void SaveSettings(){ 
@@ -230,9 +237,9 @@ namespace Simplist2 {
 			}
 		}
 
-		bool isInit = false;
+		bool isPreset = false;
 		private void Setting_Changed(object sender, RoutedEventArgs e) {
-			if (!isInit) { return; }
+			if (!isPreset) { return; }
 			Setting.IsTray = checkTray.IsChecked == true ? true : false;
 			Setting.IsNoti = checkNoti.IsChecked == true ? true : false;
 

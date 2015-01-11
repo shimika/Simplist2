@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -198,6 +199,9 @@ namespace Simplist2 {
 			return gridBase;
 		}
 
+		string animePath = @"X:\Anime\";
+		bool isMaster = false;
+
 		private void buttonBase_MouseDown(object sender, MouseButtonEventArgs e) {
 			KeyValuePair<int, string> kvpTag = (KeyValuePair<int, string>)(sender as Button).Tag;
 
@@ -207,7 +211,7 @@ namespace Simplist2 {
 				string animePath = @"X:\Anime\";
 				string keyname = "";
 
-				if (Directory.Exists(animePath)) {
+				if (isMaster) {
 					if (kvpTag.Key >= 0) {
 						keyname = DictSeason[kvpTag.Key].KeyName;
 					} else if (kvpTag.Value != "") {
@@ -454,5 +458,90 @@ namespace Simplist2 {
 		}
 
 		#endregion
+
+		private Button GetNoticeControl(ListData ld) {
+			Button button = new Button() {
+				HorizontalAlignment = HorizontalAlignment.Stretch,
+				HorizontalContentAlignment = HorizontalAlignment.Stretch,
+				Background = Brushes.Transparent,
+			};
+
+			// Based grid
+
+			Grid gridBase = new Grid() {
+				Height = 55,
+			};
+
+			// Title text
+
+			TextBlock txtTitle = new TextBlock() {
+				FontSize = 16, Text = ld.Caption,
+				Margin = new Thickness(15, 5, 0, 0), Width = 300,
+				HorizontalAlignment = HorizontalAlignment.Left,
+				VerticalAlignment = VerticalAlignment.Top,
+				TextTrimming = TextTrimming.CharacterEllipsis,
+			};
+			gridBase.Children.Add(txtTitle);
+
+			// Title area
+
+			StackPanel stackTitle = new StackPanel() {
+				Orientation = Orientation.Horizontal,
+				VerticalAlignment = VerticalAlignment.Bottom,
+				Margin = new Thickness(20, 0, 0, 5)
+			};
+
+			// Episode text
+
+			TextBlock txtEpisode = new TextBlock() {
+				FontSize = 14,
+				Foreground = SColor,
+				Margin = new Thickness(0, 0, 5, 0),
+			};
+			txtEpisode.Text = Convert.ToInt32(ld.ID.Substring(14, 4)).ToString("00");
+			if (ld.ID.Substring(18, 1) != "0") { txtEpisode.Text += "." + ld.ID.Substring(18, 1); }
+
+			// Maker text
+
+			TextBlock txtMaker = new TextBlock() {
+				FontSize = 14, Foreground = Brushes.DimGray,
+				Text = ld.ID.Substring(19)
+			};
+
+			stackTitle.Children.Add(txtEpisode);
+			stackTitle.Children.Add(txtMaker);
+
+			gridBase.Children.Add(stackTitle);
+
+			// Time text
+
+			TextBlock txtTime = new TextBlock() {
+				FontSize = 14, Foreground = Brushes.Gray,
+				//Text = ld.ID.Substring(0, 14),
+				Text = ld.Memo,
+				Margin = new Thickness(0, 0, 15, 5),
+				HorizontalAlignment = HorizontalAlignment.Right,
+				VerticalAlignment = VerticalAlignment.Bottom,
+			};
+
+			gridBase.Children.Add(txtTime);
+
+			// Underbar
+
+			Grid gridSplitter = new Grid() {
+				Width = 360, Height = 1, Margin = new Thickness(10, 0, 10, 0),
+				VerticalAlignment = VerticalAlignment.Bottom,
+				Background = SColor
+			};
+			gridBase.Children.Add(gridSplitter);
+
+			// set content
+
+			ld.Memo = "anime";
+			button.Tag = ld;
+			button.Content = gridBase;
+
+			return button;
+		}
 	}
 }

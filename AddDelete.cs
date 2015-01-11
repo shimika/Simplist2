@@ -141,9 +141,15 @@ namespace Simplist2 {
 
 			if (keyname == "") { return; }
 
+
 			int sid = DictArchive[keyname].SID;
 			DictArchive[keyname].Episode = (DictArchive[keyname].Episode + 1) * -1;
 			DictArchive[keyname].IsVisible = ShowAll || DictArchive[keyname].Episode >= 0 ? true : false;
+
+
+			((buttonEnableDisable as Button).Content as TextBlock).Text = DictArchive[keyname].Episode >= 0 ? "Disable this item" : "Enable this item";
+
+			return;
 
 			AnimateAddDialog("close");
 			SaveData();

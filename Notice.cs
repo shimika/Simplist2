@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -15,168 +17,170 @@ namespace Simplist2 {
 
 		Dictionary<string, Button> DictNoticeControl = new Dictionary<string, Button>();
 		Dictionary<string, string> DictNoticeTag = new Dictionary<string, string>();
-		Dictionary<string, bool> DictUnread = new Dictionary<string, bool>();
+		string log = "";
 
 		bool isUpdating = false;
-		private async void RefreshNoticeList(bool isInit = false, bool isAuto = true) {
-			if (!isAuto) { ShowGlobalMessage("Updating...", Brushes.BlueViolet); }
+		DateTime LastCheck = new DateTime(1970, 1, 1);
+		private async void RefreshNoticeList(bool Init = false, bool isAuto = true) {
+			int area = 0;
 
-			if (isUpdating) { return; }
-			isUpdating = true;
+			try {
+				if (!isAuto && !Init) { ShowGlobalMessage("Updating...", Brushes.BlueViolet); }
 
-			RefreshWeekHead();
-			Task<List<ListData>> httpTask;
-			Dictionary<string, ListData> dictCrawl = new Dictionary<string, ListData>();
-			List<ListData> listAnime, listMaker;
+				if (isUpdating) { return; }
+				isUpdating = true;
 
-			string changeTitle = "", changeMaxValue = "";
+				area = 1;
 
-			for (int i = -2; i <= 0; i++) {
-				httpTask = GetWeekdayList((WeekDay + i + 7) % 7);
-				listAnime = await httpTask;
+				Task<List<ListData>> httpTask;
+				Dictionary<string, ListData> dictCrawl = new Dictionary<string, ListData>();
+				List<ListData> listAnime, listMaker;
 
-				if (listAnime.Count == 0) {
+				for (int i = -2; i <= 0; i++) {
+					try {
+						httpTask = GetWeekdayList((WeekDay + i + 7) % 7);
+						listAnime = await httpTask;
+					} catch {
+						return;
+					}
+
+					if (listAnime.Count == 0) {
+						dictCrawl.Clear();
+						break;
+					}
+
+					foreach (ListData ldTitle in listAnime) {
+						httpTask = GetMakerList(ldTitle.URL, true);
+						listMaker = await httpTask;
+
+						if (listMaker.Count == 0) { continue; }
+
+						ListData ld = listMaker[0];
+						ld.Caption = ldTitle.Caption;
+						ld.URL = ldTitle.URL;
+
+						log += string.Format("{0} : {1}\n", ldTitle.ID, ldTitle.Caption);
+
+						dictCrawl.Add(ldTitle.ID, ld);
+						listMaker.Clear();
+					}
+
+					listAnime.Clear();
+				}
+
+				area = 2;
+
+				if (dictCrawl.Count == 0) {
 					if (!isAuto) { ShowGlobalMessage("Update failed", Brushes.Crimson); }
 					isUpdating = false;
 					return;
 				}
 
-				foreach (ListData ldTitle in listAnime) {
-					httpTask = GetMakerList(ldTitle.URL, true);
-					listMaker = await httpTask;
+				await this.Dispatcher.BeginInvoke(new Action(() => {
+					RefreshNoticeControl(dictCrawl.Values
+						.OrderByDescending(x => x.UpdateTime)
+						.ToList()
+						, Init, isAuto);
+				}));
 
-					if (listMaker.Count == 0) { continue; }
+				isUpdating = false;
+				if (!isAuto && !Init) { ShowGlobalMessage("Update complete", Brushes.MediumOrchid); }
 
-					ListData ld = listMaker[0];
-					ld.Caption = ldTitle.Caption;
-					ld.URL = ldTitle.URL;
+			} catch (Exception ex) {
+				if (!isMaster) { return; }
 
-					dictCrawl.Add(ldTitle.ID, ld);
-					listMaker.Clear();
+				//MessageBox.Show(ex.Message + "\n" + "Area" + area);
+			}
+		}
+
+		List<ListData> ListNotice = new List<ListData>();
+		private void RefreshNoticeControl(List<ListData> list, bool isInit, bool isAuto) {
+			try {
+				if (list.Count == 0) { return; }
+
+				ListNotice = list;
+
+				if (this.Visibility == System.Windows.Visibility.Visible) {
+					stackNotice.Children.Clear();
 				}
 
-				listAnime.Clear();
-			}
+				int NewCount = 0;
+				string NewTitle = "";
 
-			// Remove dummy data
+				if (!isAuto) { LastCheck = DateTime.Now; }
 
-			List<KeyValuePair<string, string>> listNoticeClone = DictNoticeTag.ToList();
+				for (int i = 0; i < list.Count; i++) {
+					ListData ld = list[i];
 
-			foreach (KeyValuePair<string, string> kvp in listNoticeClone) {
-				try {
-					if (!dictCrawl.ContainsKey(kvp.Key) || dictCrawl[kvp.Key].ID != kvp.Value) {
-						stackNotice.Children.Remove(DictNoticeControl[kvp.Key]);
-						DictNoticeControl.Remove(kvp.Key);
-						DictNoticeTag.Remove(kvp.Key);
+					TimeSpan tsTime = DateTime.Now - ld.UpdateTime;
+					TimeSpan svTime = DateTime.Now - LastCheck;
 
-						if (dictCrawl.ContainsKey(kvp.Key)) {
-							LogN(string.Format("removed : {0}", dictCrawl[kvp.Key].Caption));
-						} else {
-							DictUnread.Remove(kvp.Key);
-						}
-					}
-				} catch (Exception ex) { }
-			}
+					// Add new 
 
-			listNoticeClone.Clear();
-
-
-			// Insert new data
-
-			List<string> listPosition = DictNoticeTag.Values.ToList().OrderByDescending(x => x).ToList();
-			int lBound;
-
-			foreach (KeyValuePair<string, ListData> ld in dictCrawl) {
-				if (!DictNoticeTag.ContainsKey(ld.Key)) {
-					if (!DictUnread.ContainsKey(ld.Key)) {
-						DictUnread.Add(ld.Key, true);
-					}
-
-					if (string.Compare(ld.Value.ID, changeMaxValue) >= 0) {
-						changeMaxValue = ld.Value.ID;
-						changeTitle = ld.Value.Caption;
-					}
-
-					lBound = DictNoticeTag.Count;
-
-					for (int i = 0; i < listPosition.Count; i++) {
-						if (string.Compare(ld.Value.ID, listPosition[i]) >= 0) {
-							lBound = i;
-							break;
-						}
-					}
-
-					Button button = GetNoticeControl(ld.Value);
-					button.Click += buttonNoticeItem_Click;
-
-					listPosition.Insert(lBound, ld.Value.ID);
-					DictNoticeTag.Add(ld.Key, ld.Value.ID);
-					DictNoticeControl.Add(ld.Key, button);
-
-					stackNotice.Children.Insert(lBound, button);
-				}
-			}
-
-			// Rewrite time info
-
-			DateTime dtNow = DateTime.Now;
-
-			foreach (Button button in stackNotice.Children) {
-				TextBlock txtTime = (button.Content as Grid).Children[2] as TextBlock;
-				DateTime dtSaved = (DateTime)txtTime.Tag;
-				TimeSpan tsTime = dtNow - dtSaved;
-
-				if (dtSaved.Year == 1900) {
-					txtTime.Text = "";
-					continue;
-				}
-
-				if (tsTime.TotalSeconds < 60) {
-					txtTime.Text = string.Format("{0}초 전", (int)tsTime.TotalSeconds);
-				} else if (tsTime.TotalMinutes < 60) {
-					txtTime.Text = string.Format("{0}분 전", (int)tsTime.TotalMinutes);
-				} else if (tsTime.TotalHours < 24) {
-					txtTime.Text = string.Format("{0}시간 전", (int)tsTime.TotalHours);
-				} else {
-					if (dtSaved.Year != dtNow.Year) {
-						txtTime.Text = string.Format("{0}/{1}/{2} {3}:{4:D2}", dtSaved.Year, dtSaved.Month, dtSaved.Day, dtSaved.Hour, dtSaved.Minute);
+					if (ld.UpdateTime.Year == 1900) {
+						ld.Memo = "";
+					} else if (tsTime.TotalSeconds < 60) {
+						ld.Memo = string.Format("{0}초 전", (int)tsTime.TotalSeconds);
+					} else if (tsTime.TotalMinutes < 60) {
+						ld.Memo = string.Format("{0}분 전", (int)tsTime.TotalMinutes);
+					} else if (tsTime.TotalHours < 24) {
+						ld.Memo = string.Format("{0}시간 전", (int)tsTime.TotalHours);
 					} else {
-						txtTime.Text = string.Format("{0}/{1} {2}:{3:D2}", dtSaved.Month, dtSaved.Day, dtSaved.Hour, dtSaved.Minute);
-					}
-				}
-			}
-
-
-			if (DictUnread.Count > 0) {
-				if (PageMode != "notice") {
-					if (changeMaxValue != "") {
-						DateTime dt = DateTime.ParseExact(changeMaxValue.Substring(0, 14), "yyyyMMddHHmmss", CultureInfo.InvariantCulture);
-						LogN(changeTitle + " : " + DictUnread.Count + " : " + dt);
-					}
-
-					if (isAuto && !isInit) {
-						NoticeCount = DictUnread.Count;
-
-						if (NoticeCount >= 10 && PageMode != "notice") {
-							buttonInnerNotice.Text = "Notice 9+";
-						} else if (NoticeCount > 0 && PageMode != "notice") {
-							buttonInnerNotice.Text = string.Format("Notice {0}", NoticeCount);
+						if (ld.UpdateTime.Year != DateTime.Now.Year) {
+							ld.Memo = string.Format("{0}/{1}/{2} {3}:{4:D2}", ld.UpdateTime.Year, ld.UpdateTime.Month, ld.UpdateTime.Day, ld.UpdateTime.Hour, ld.UpdateTime.Minute);
+						} else {
+							ld.Memo = string.Format("{0}/{1} {2}:{3:D2}", ld.UpdateTime.Month, ld.UpdateTime.Day, ld.UpdateTime.Hour, ld.UpdateTime.Minute);
 						}
 					}
-				} else {
-					DictUnread.Clear();
-				}
-			} else {
-				LogN("no refresh");
-			}
 
-			isUpdating = false;
-			if (!isAuto) { ShowGlobalMessage("Update complete", Brushes.BlueViolet); }
+					if (this.Visibility == System.Windows.Visibility.Visible) {
+						Button button = GetNoticeControl(ld);
+						button.Click += buttonNoticeItem_Click;
+
+						stackNotice.Children.Add(button);
+					}
+
+					// Check new
+
+					if (svTime > tsTime) {
+						NewCount++;
+						if (NewTitle == "") {
+							NewTitle = ld.Caption;
+						}
+					}
+				}
+
+				if (NewCount > 0 && isAuto && !isInit) {
+					if (PageMode != "notice" && this.Visibility == System.Windows.Visibility.Visible) {
+						if (NewCount >= 10) {
+							buttonInnerNotice.Text = "Notice 9+";
+						} else {
+							buttonInnerNotice.Text = string.Format("Notice {0}", NewCount);
+						}
+					}
+
+					if (Setting.IsNoti) {
+						ni.ShowBalloonTip(3000,
+							"자막 알림",
+							NewCount == 1
+								? string.Format("{0}의 자막이 등록되었습니다.", NewTitle)
+								: string.Format("{0}외 {1}개의 애니메이션 자막이 새로 등록되었습니다.", NewTitle, NewCount - 1),
+							System.Windows.Forms.ToolTipIcon.Info);
+					}
+				}
+			} catch (Exception ex) {
+				MessageBox.Show(ex.Message + "\n" + "RefreshNoticeControl : Notice.cs");
+			}
+		}
+
+		private void RefreshNoticeTime(List<ListData> list) {
+			stackNotice.Children.Clear();
 		}
 
 		private void LogN(string str) {
+			if (!isMaster) { return; }
 			using (StreamWriter sw = new StreamWriter(@"C:\Simplist2log.txt", true)) {
-				sw.WriteLine(string.Format("{0} : {1}", DateTime.Now, str));
+				sw.WriteLine(string.Format("{0}", str));
 			}
 		}
 
@@ -188,95 +192,6 @@ namespace Simplist2 {
 			ToggleDownloadDialog(false);
 
 			RefreshSubtitleActivity((ListData)(sender as Button).Tag);
-		}
-
-		private Button GetNoticeControl(ListData ld) {
-			Button button = new Button() {
-				HorizontalAlignment = HorizontalAlignment.Stretch, 
-				HorizontalContentAlignment = HorizontalAlignment.Stretch,
-				Tag = ld, Background = Brushes.Transparent,
-			};
-
-			// Based grid
-
-			Grid gridBase = new Grid() {
-				Height = 55,
-			};
-
-			// Title text
-
-			TextBlock txtTitle = new TextBlock() {
-				FontSize = 16, Text = ld.Caption,
-				Margin = new Thickness(15, 5, 0, 0), Width = 300,
-				HorizontalAlignment = HorizontalAlignment.Left,
-				VerticalAlignment = VerticalAlignment.Top, 
-				TextTrimming = TextTrimming.CharacterEllipsis,
-			};
-			gridBase.Children.Add(txtTitle);
-
-			// Title area
-
-			StackPanel stackTitle = new StackPanel() {
-				Orientation = Orientation.Horizontal,
-				VerticalAlignment = VerticalAlignment.Bottom,
-				Margin = new Thickness(20, 0, 0, 5)
-			};
-
-			// Episode text
-
-			TextBlock txtEpisode = new TextBlock() {
-				FontSize = 14,
-				Foreground = SColor,
-				Margin = new Thickness(0, 0, 5, 0),
-			};
-			txtEpisode.Text = Convert.ToInt32(ld.ID.Substring(14, 4)).ToString("00");
-			if (ld.ID.Substring(18, 1) != "0") { txtEpisode.Text += "." + ld.ID.Substring(18, 1); }
-
-			// Maker text
-
-			TextBlock txtMaker = new TextBlock() {
-				FontSize = 14, Foreground = Brushes.DimGray,
-				Text = ld.ID.Substring(19)
-			};
-
-			stackTitle.Children.Add(txtEpisode);
-			stackTitle.Children.Add(txtMaker);
-
-			gridBase.Children.Add(stackTitle);
-
-			// Time text
-			DateTime dt = new DateTime();
-
-			try {
-				dt = DateTime.ParseExact(ld.ID.Substring(0, 14), "yyyyMMddHHmmss", CultureInfo.InvariantCulture);
-			} catch {
-				dt = new DateTime(1900, 1, 1);
-			}
-
-			TextBlock txtTime = new TextBlock() {
-				FontSize = 14, Foreground = Brushes.Gray,
-				//Text = ld.ID.Substring(0, 14),
-				Margin = new Thickness(0, 0, 15, 5),
-				HorizontalAlignment = HorizontalAlignment.Right,
-				Tag = dt, VerticalAlignment = VerticalAlignment.Bottom,
-			};
-
-			gridBase.Children.Add(txtTime);
-
-			// Underbar
-
-			Grid gridSplitter = new Grid() {
-				Width = 360, Height = 1, Margin = new Thickness(10, 0, 10, 0),
-				VerticalAlignment = VerticalAlignment.Bottom,
-				Background = SColor
-			};
-			gridBase.Children.Add(gridSplitter);
-
-			// set content
-
-			button.Content = gridBase;
-
-			return button;
 		}
 	}
 

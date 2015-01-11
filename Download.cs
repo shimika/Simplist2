@@ -26,20 +26,19 @@ namespace Simplist2 {
 			ClearDownloadDialogControl();
 			buttonTabTorrent.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
 
+			// Torrent Download
+
 			Task<List<ListData>> httpTask;
 			httpTask = GetTorrentList(DictSeason[sid].Keyword);
 			List<ListData> listTorrent = await httpTask;
 
-			httpTask = GetWeekdayList(DictSeason[sid].Week);
-			List<ListData> listSubtitle = await httpTask;
-
-			if (LoadingID != sid || listTorrent.Count == 0 || listSubtitle.Count == 0) {
+			if (LoadingID != sid || listTorrent.Count == 0) {
 				imgLoadIndicator.Visibility = Visibility.Collapsed;
 				return;
 			}
-			ClearDownloadDialogControl();
 
-			// Torrent Download
+			imgLoadIndicator.Visibility = Visibility.Collapsed;
+			ClearDownloadDialogControl();
 
 			StackPanel stack = new StackPanel();
 			for (int i = 0; i < listTorrent.Count; i++) {
@@ -60,6 +59,15 @@ namespace Simplist2 {
 
 			// Subtitle Download
 
+			httpTask = GetWeekdayList(DictSeason[sid].Week);
+			List<ListData> listSubtitle = await httpTask;
+
+			if (LoadingID != sid || listSubtitle.Count == 0) {
+				imgLoadIndicator.Visibility = Visibility.Collapsed;
+				return;
+			}
+
+			imgLoadIndicator.Visibility = Visibility.Collapsed;
 			int minValue = 9999, minIndex = 0, getValue, flag = 0;
 
 
@@ -83,21 +91,15 @@ namespace Simplist2 {
 			} else {
 				MakeSubtitleActivity(string.Format("{0}요일", WeekString[DictSeason[sid].Week]), listSubtitle, new ListData() { Memo = "" });
 			}
+
 			imgLoadIndicator.Visibility = Visibility.Collapsed;
 		}
 
 		private void btnTorrent_Click(object sender, RoutedEventArgs e) {
 			ListData ld = (ListData)(sender as Button).Tag;
+			string downPath = string.Format("{0}{1:MM-dd HH_mm_ss}_{2}.torrent", ffFolder, DateTime.Now, GetMD5Hash(ld.Caption));
 
-			WebClient webDownload = new WebClient() { Proxy = null };
-			webDownload.Headers.Add("user-agent", "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/29.0.1547.76 Safari/537.36");
-			Uri uri = new Uri(ld.URL);
-
-			string downPath = string.Format("{0}{1}_{2}.torrent", ffFolder, DateTime.Now.ToString().Replace(':', '_'), GetMD5Hash(ld.Caption));
-
-			webDownload.DownloadFileCompleted += webDownload_DownloadFileCompleted;
-			KeyValuePair<string, string> kvp = new KeyValuePair<string, string>(ld.Caption, downPath);
-			webDownload.DownloadFileAsync(uri, downPath, kvp);
+			DownloadProcess(ld.URL, downPath, ld.Caption);
 		}
 
 		private void MakeSubtitleActivity(string title, List<ListData> listCollection, ListData recallparam, int magnification = 1) {
@@ -203,34 +205,43 @@ namespace Simplist2 {
 				AnimeTitle = ld.Caption;
 				MakeSubtitleActivity(ld.Caption, listMaker, new ListData() { Memo = "" }, magnification);
 			} else if (ld.Memo == "maker") {
-				httpTask = GetFileList(ld.URL);
+				bool isHakerano = false;
+				if (ld.Caption.IndexOf("하케라노") >= 0) {
+					isHakerano = true;
+				}
+
+				httpTask = GetFileList(ld.URL, isHakerano);
 				List<ListData> listFile = await httpTask;
 
 				listFile.Add(new ListData() { Caption = "블로그로 이동", URL = ld.URL, Memo = "blog" });
 
 				MakeSubtitleActivity(ld.Caption, listFile, new ListData() { Memo = "" }, magnification);
 			} else if (ld.Memo == "blog") {
-				Process pro = new Process() {
-					StartInfo = new ProcessStartInfo() {
-						FileName = new UriBuilder(ld.URL).Uri.ToString(),
-					}
-				};
-				pro.Start();
+				if (ld.URL == "") {
+					ShowGlobalMessage("Can't verify url", Brushes.Crimson);
+				} else {
+					Process pro = new Process() {
+						StartInfo = new ProcessStartInfo() {
+							FileName = new UriBuilder(ld.URL).Uri.ToString(),
+						}
+					};
+					pro.Start();
+				}
 			} else if (ld.Memo == "file") {
-				WebClient webDownload = new WebClient() { Proxy = null };
-				webDownload.Headers.Add("user-agent", "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/29.0.1547.76 Safari/537.36");
-				Uri uri = new Uri(ld.URL);
+				if (Path.GetExtension(ld.Caption) == "") {
+					ld.Caption += ".zip";
+				}
 
-				string downPath = string.Format("{0}{1}_{2}", ffFolder, DateTime.Now.ToString().Replace(':', '_'), ld.Caption);
-
-				webDownload.DownloadFileCompleted += webDownload_DownloadFileCompleted;
-				KeyValuePair<string, string> kvp = new KeyValuePair<string, string>(ld.Caption, downPath);
-				webDownload.DownloadFileAsync(uri, downPath, kvp);
+				string downPath = string.Format("{0}{1:MM-dd HH_mm_ss}_{2}", ffFolder, DateTime.Now, ld.Caption);
+				DownloadProcess(ld.URL, downPath, ld.Caption);
 			} else if (ld.Memo == "innerzip") {
 				using (ZipArchive archive = ZipFile.OpenRead(ld.URL)) {
 					foreach (ZipArchiveEntry entry in archive.Entries) {
 						if (entry.FullName == ld.Caption) {
-							string str = string.Format("{0}.smi", GetMD5Hash(DateTime.Now + entry.FullName));
+							string[] name = entry.FullName.Split(new char[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
+							string ext = name[name.Length - 1];
+
+							string str = string.Format("{0}.{1}", GetMD5Hash(DateTime.Now + entry.FullName), ext);
 							entry.ExtractToFile(Path.Combine(ffFolder, str));
 
 							try {
@@ -238,12 +249,15 @@ namespace Simplist2 {
 								string strFilename = "dummy";
 
 								if (LoadingID >= 0) {
-									strFilename = string.Format("{0} - {1:D2}.smi", DictSeason[LoadingID].Title, (findNumber >= 0/* && Math.Abs(DictArchive[DictSeason[LoadingID].KeyName].Episode - findNumber) <= 2*/) ? findNumber : DictArchive[DictSeason[LoadingID].KeyName].Episode);
+									strFilename = string.Format("{0} - {1:D2}.{2}"
+										, DictSeason[LoadingID].Title
+										, (findNumber >= 0/* && Math.Abs(DictArchive[DictSeason[LoadingID].KeyName].Episode - findNumber) <= 2*/) ? findNumber : DictArchive[DictSeason[LoadingID].KeyName].Episode
+										, ext);
 								} else {
-									if(findNumber>=0){
-										strFilename = string.Format("{0} - {1:D2}.smi", AnimeTitle, findNumber);
-									}else{
-										strFilename = string.Format("{0}.smi", AnimeTitle);
+									if (findNumber >= 0) {
+										strFilename = string.Format("{0} - {1:D2}.{2}", AnimeTitle, findNumber, ext);
+									} else {
+										strFilename = string.Format("{0}.{1}", AnimeTitle, ext);
 									}
 								}
 
@@ -259,48 +273,95 @@ namespace Simplist2 {
 			imgLoadIndicator.Visibility = Visibility.Collapsed;
 		}
 
-		private void webDownload_DownloadFileCompleted(object sender, System.ComponentModel.AsyncCompletedEventArgs e) {
-			if (e.Error != null) {
-				//MessageBox.Show(e.Error.Message);
-				return;
-			}
+		private async void DownloadProcess(string url, string path, string caption) {
+			Task<bool> httpTask;
+			httpTask = DownloadFile(url, path, caption);
+			bool isOK = await httpTask;
 
-			KeyValuePair<string, string> kvp = (KeyValuePair<string, string>)e.UserState;
+			if (!isOK) { return; }
 
-			string strPath = kvp.Value;
-			string[] strExts = strPath.Split('.');
+			string[] strExts = path.Split('.');
 			string strExt = strExts[strExts.Length - 1].ToLower();
 			string strFilename = "";
 
 			if (strExt == "smi") {
-				strExts = strPath.Split('\\');
+				strExts = path.Split('\\');
+
 				try {
-					int findNumber = FindNumberFromString(kvp.Key);
-					strFilename = string.Format("{0} - {1:D2}.smi", DictSeason[LoadingID].Title, (findNumber >= 0/* && Math.Abs(DictArchive[DictSeason[LoadingID].KeyName].Episode - findNumber) <= 100*/) ? findNumber : DictArchive[DictSeason[LoadingID].KeyName].Episode);
-					CopyFromFilesystem(strPath, strFilename, kvp.Key);
+					int findNumber = FindNumberFromString(caption);
+
+					if (LoadingID >= 0) {
+						strFilename = string.Format("{0} - {1:D2}.smi", 
+							DictSeason[LoadingID].Title, 
+							findNumber >= 0 ? findNumber : DictArchive[DictSeason[LoadingID].KeyName].Episode);
+					} else {
+						if (findNumber >= 0) {
+							strFilename = string.Format("{0} - {1:D2}.smi", AnimeTitle, findNumber);
+						} else {
+							strFilename = string.Format("{0}.smi", AnimeTitle);
+						}
+					}
+					CopyFromFilesystem(path, strFilename, caption);
 				} catch {
-					CopyFromFilesystem(strPath, strExts[strExts.Length - 1], kvp.Key);
+					CopyFromFilesystem(path, strExts[strExts.Length - 1], caption);
 				}
-			} else if (strExt == "zip") {
+			} else if (strExt == "zip" || strExt == "jpg") {
 				List<ListData> listInnerZip = new List<ListData>();
 
-				using (ZipArchive archive = ZipFile.OpenRead(strPath)) {
+				using (ZipArchive archive = ZipFile.OpenRead(path)) {
 					foreach (ZipArchiveEntry entry in archive.Entries) {
 						listInnerZip.Add(new ListData() {
-							Caption = entry.FullName, URL = strPath, Memo = "innerzip",
+							Caption = entry.FullName, URL = path, Memo = "innerzip",
 						});
 					}
 				}
 
-				MakeSubtitleActivity(kvp.Key, listInnerZip, new ListData() { Memo = "" }, 1);
+				MakeSubtitleActivity(caption, listInnerZip, new ListData() { Memo = "" }, 1);
 			} else {
 				Process pro = new Process() {
 					StartInfo = new ProcessStartInfo() {
-						FileName = strPath
+						FileName = path
 					}
 				};
 				pro.Start();
 			}
+		}
+
+		private Task<bool> DownloadFile(string url, string path, string caption) {
+			return Task.Run(() => {
+				HttpWebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(new UriBuilder(url).Uri);
+
+				httpWebRequest.ContentType = "application/x-www-form-urlencoded; charset=utf-8";
+				httpWebRequest.Method = "GET";
+				httpWebRequest.Referer = "www.google.com";
+				httpWebRequest.UserAgent =
+					"Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.0; WOW64; " +
+					"Trident/4.0; SLCC1; .NET CLR 2.0.50727; Media Center PC 5.0; " +
+					".NET CLR 3.5.21022; .NET CLR 3.5.30729; .NET CLR 3.0.30618; " +
+					"InfoPath.2; OfficeLiveConnector.1.3; OfficeLivePatch.0.0)";
+				httpWebRequest.ContentLength = 0;
+				httpWebRequest.Credentials = CredentialCache.DefaultCredentials;
+
+				try {
+					httpWebRequest.Proxy = null;
+
+					HttpWebResponse httpWebResponse = (HttpWebResponse)httpWebRequest.GetResponse();
+					using (var stream = httpWebResponse.GetResponseStream()) {
+						using (FileStream fstream = new FileStream(path, FileMode.Create)) {
+							var buffer = new byte[8192];
+							var maxCount = buffer.Length;
+							int count;
+							while ((count = stream.Read(buffer, 0, maxCount)) > 0)
+								fstream.Write(buffer, 0, count);
+						}
+					}
+				} catch(Exception ex) {
+					MessageBox.Show(ex.Message);
+					return false;
+				}
+
+				return true;
+			});
 		}
 
 		string lastDirectory = "";

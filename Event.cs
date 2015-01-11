@@ -18,25 +18,27 @@ namespace Simplist2 {
 		private void gridTitlebar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) { DragMove(); }
 
 		private void ShowGlobalMessage(string message, Brush brush, double duration = 2500) {
-			textError.Text = message;
-			gridError.Background = brush;
+			this.Dispatcher.BeginInvoke(new Action(() => {
+				textError.Text = message;
+				gridError.Background = brush;
 
-			Storyboard sbError = new Storyboard();
+				Storyboard sbError = new Storyboard();
 
-			DoubleAnimation daErrorOn = new DoubleAnimation(1, TimeSpan.FromMilliseconds(0));
-			DoubleAnimation daErrorOff = new DoubleAnimation(0, TimeSpan.FromMilliseconds(250)) {
-				BeginTime = TimeSpan.FromMilliseconds(duration)
-			};
+				DoubleAnimation daErrorOn = new DoubleAnimation(1, TimeSpan.FromMilliseconds(0));
+				DoubleAnimation daErrorOff = new DoubleAnimation(0, TimeSpan.FromMilliseconds(250)) {
+					BeginTime = TimeSpan.FromMilliseconds(duration)
+				};
 
-			Storyboard.SetTarget(daErrorOn, gridError);
-			Storyboard.SetTarget(daErrorOff, gridError);
-			Storyboard.SetTargetProperty(daErrorOn, new PropertyPath(Grid.OpacityProperty));
-			Storyboard.SetTargetProperty(daErrorOff, new PropertyPath(Grid.OpacityProperty));
+				Storyboard.SetTarget(daErrorOn, gridError);
+				Storyboard.SetTarget(daErrorOff, gridError);
+				Storyboard.SetTargetProperty(daErrorOn, new PropertyPath(Grid.OpacityProperty));
+				Storyboard.SetTargetProperty(daErrorOff, new PropertyPath(Grid.OpacityProperty));
 
-			sbError.Children.Add(daErrorOn);
-			sbError.Children.Add(daErrorOff);
+				sbError.Children.Add(daErrorOn);
+				sbError.Children.Add(daErrorOff);
 
-			sbError.Begin(this);
+				sbError.Begin(this);
+			}));
 		}
 
 		// Add Dialog Window Events
@@ -243,10 +245,8 @@ namespace Simplist2 {
 			ChangeTab("notice");
 		}
 
-		int NoticeCount = 0;
 		private void buttonTabNotice_Click(object sender, RoutedEventArgs e) {
-			DictUnread.Clear();
-			NoticeCount = 0;
+			RefreshNoticeControl(ListNotice, false, false);
 			buttonInnerNotice.Text = "Notice";
 			ChangeTab("notice");
 		}
@@ -269,6 +269,7 @@ namespace Simplist2 {
 			buttonShowMode.Visibility = tag == "archive" ? Visibility.Visible : Visibility.Collapsed;
 			buttonAdd.Visibility = (tag == "season" || tag == "archive") ? Visibility.Visible : Visibility.Collapsed;
 			buttonRefresh.Visibility = tag == "notice" ? Visibility.Visible : Visibility.Collapsed;
+			buttonScreenshot.Visibility = tag == "season" ? Visibility.Visible : Visibility.Collapsed;
 
 			buttonTabSeason.IsEnabled = tag == "season" ? false : true;
 			buttonTabArchive.IsEnabled = tag == "archive" ? false : true;
@@ -293,8 +294,6 @@ namespace Simplist2 {
 				new ThicknessAnimation(new Thickness(leftMargin, 0, 0, 0), TimeSpan.FromMilliseconds(150)) {
 					EasingFunction = new ExponentialEase() { EasingMode = EasingMode.EaseOut, Exponent = 6 },
 				});
-			rectSelectedIndicator.BeginAnimation(Rectangle.WidthProperty,
-				new DoubleAnimation(width, TimeSpan.FromMilliseconds(150)));
 		}
 
 		// Show All (Archive)
@@ -350,38 +349,24 @@ namespace Simplist2 {
 			if (isReallyClose) {
 				ni.Dispose();
 			} else {
+				ShowGlobalMessage("", Brushes.Transparent, 0);
+
 				if (isFirstPopup) {
 					isFirstPopup = false;
 					ni.ShowBalloonTip(3000, "Simplist2", "트레이로 이동되었습니다.\n더블클릭하면 다시 표시됩니다.\n\n종료하려면 트레이 아이콘의 메뉴에서 종료하세요.", System.Windows.Forms.ToolTipIcon.Info);
 				}
-				this.Visibility = Visibility.Collapsed;
 				e.Cancel = true;
+				this.Opacity = 0;
+				new AltTab().HideAltTab(this);
 			}
 		}
 
 		private void dtmCrawl_Tick(object sender, EventArgs e) {
-			RefreshNoticeList(false, true);
+			try {
+				RefreshNoticeList(false, true);
+			} catch (Exception ex) {
+				MessageBox.Show(ex.Message);
+			}
 		}
-
-		/*
-
-		private void NotiIconAnimate() {
-			Storyboard sb = new Storyboard() { RepeatBehavior = RepeatBehavior.Forever };
-			DoubleAnimation da = new DoubleAnimation(1, 0.5, TimeSpan.FromMilliseconds(500)) {
-				RepeatBehavior = new RepeatBehavior(1), BeginTime = TimeSpan.FromSeconds(20),
-			};
-			Storyboard.SetTarget(da, buttonNotiOn);
-			Storyboard.SetTargetProperty(da, new PropertyPath(Button.OpacityProperty));
-
-			sb.Children.Add(da);
-			sb.Begin(this);
-		}
-
-		private void ToggleNotiIcon(bool isNoti) {
-			buttonNotiOn.Visibility = isNoti ? Visibility.Visible : Visibility.Collapsed;
-			buttonNotiOff.Visibility = !isNoti ? Visibility.Visible : Visibility.Collapsed;
-		}
-		 
-		 */ 
 	}
 }
